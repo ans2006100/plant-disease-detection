@@ -20,7 +20,7 @@ st.set_page_config(
 
 BASE_DIR = Path(__file__).resolve().parent
 
-MODEL_PATH = BASE_DIR / "plant_disease_cnn.keras"
+MODEL_PATH = BASE_DIR / "best_mobilenetv2.keras"
 CLASS_PATH = BASE_DIR / "class_names.json"
 
 
@@ -31,19 +31,16 @@ CLASS_PATH = BASE_DIR / "class_names.json"
 st.markdown("""
 <style>
 
-/* Main application background */
 .stApp {
     background-color: #f1f7f1;
     color: #26372b;
 }
 
-/* Main content */
 .block-container {
     padding-top: 2rem;
     padding-bottom: 2rem;
 }
 
-/* Header */
 .main-title {
     font-size: 44px;
     font-weight: 800;
@@ -59,19 +56,16 @@ st.markdown("""
     margin-bottom: 25px;
 }
 
-/* Force readable text */
 h1, h2, h3, h4, h5, h6,
 p, label, li,
 [data-testid="stMarkdownContainer"] {
     color: #26372b;
 }
 
-/* Sidebar */
 [data-testid="stSidebar"] {
     background-color: #e1eee2;
 }
 
-/* Cards */
 .result-card {
     background-color: #ffffff;
     padding: 25px;
@@ -88,7 +82,6 @@ p, label, li,
     color: #176b3a !important;
 }
 
-/* Information cards */
 .info-card {
     background-color: #ffffff;
     padding: 20px;
@@ -97,14 +90,12 @@ p, label, li,
     margin-bottom: 15px;
 }
 
-/* Section headings */
 .section-heading {
     color: #176b3a !important;
     font-size: 23px;
     font-weight: 700;
 }
 
-/* Buttons */
 .stButton button {
     background-color: #238b50;
     color: white !important;
@@ -121,7 +112,6 @@ p, label, li,
     border: none;
 }
 
-/* File uploader */
 [data-testid="stFileUploader"] {
     background-color: #ffffff;
     padding: 15px;
@@ -129,17 +119,14 @@ p, label, li,
     border: 1px dashed #238b50;
 }
 
-/* Uploaded file text */
 [data-testid="stFileUploader"] * {
     color: #26372b !important;
 }
 
-/* Progress bar */
 .stProgress > div > div > div {
     background-color: #238b50;
 }
 
-/* Footer */
 .footer {
     text-align: center;
     color: #647568 !important;
@@ -180,7 +167,7 @@ with st.sidebar:
 
     st.write(
         "An intelligent system that identifies plant leaf "
-        "diseases using Convolutional Neural Networks."
+        "diseases using MobileNetV2 transfer learning."
     )
 
     st.divider()
@@ -197,7 +184,7 @@ with st.sidebar:
 
     st.write("• Python")
     st.write("• TensorFlow / Keras")
-    st.write("• CNN")
+    st.write("• MobileNetV2 (Transfer Learning)")
     st.write("• Streamlit")
     st.write("• NumPy")
     st.write("• Pillow")
@@ -308,8 +295,27 @@ disease_info = {
 
 
 # ==========================================
-# 6. LOAD TRAINED CNN MODEL
+# 6. LOAD TRAINED MOBILENETV2 MODEL
 # ==========================================
+
+EXPECTED_CLASS_NAMES = [
+    "Pepper,_bell___Bacterial_spot",
+    "Pepper,_bell___healthy",
+    "Potato___Early_blight",
+    "Potato___healthy",
+    "Potato___Late_blight",
+    "Tomato___Bacterial_spot",
+    "Tomato___Early_blight",
+    "Tomato___healthy",
+    "Tomato___Late_blight",
+    "Tomato___Leaf_Mold",
+    "Tomato___Septoria_leaf_spot",
+    "Tomato___Spider_mites Two-spotted_spider_mite",
+    "Tomato___Target_Spot",
+    "Tomato___Tomato_mosaic_virus",
+    "Tomato___Tomato_Yellow_Leaf_Curl_Virus"
+]
+
 
 @st.cache_resource
 def load_model():
@@ -318,8 +324,19 @@ def load_model():
         str(MODEL_PATH)
     )
 
-    with open(CLASS_PATH, "r") as file:
+    with open(CLASS_PATH, "r", encoding="utf-8") as file:
         class_names = json.load(file)
+
+    if class_names != EXPECTED_CLASS_NAMES:
+        raise ValueError(
+            "class_names.json does not match the exact "
+            "15-class order used during MobileNetV2 training."
+        )
+
+    if model.output_shape[-1] != len(class_names):
+        raise ValueError(
+            "Model output count does not match the class labels."
+        )
 
     return model, class_names
 
@@ -328,7 +345,7 @@ try:
 
     model, class_names = load_model()
 
-    st.success("✅ AI Model loaded successfully!")
+    st.success("✅ MobileNetV2 model loaded successfully!")
 
 except Exception as e:
 
@@ -390,22 +407,28 @@ if uploaded_file is not None:
 
     if predict_button:
 
-        with st.spinner("Analyzing plant leaf using CNN model..."):
+        with st.spinner("Analyzing plant leaf using MobileNetV2..."):
 
-            # Image preprocessing
-            resized_image = image.resize((128, 128))
+            # MobileNetV2 preprocessing
+            resized_image = image.resize((160, 160))
 
             image_array = np.array(
                 resized_image,
                 dtype=np.float32
-            ) / 255.0
+            )
+
+            image_array = (
+                tf.keras.applications.mobilenet_v2.preprocess_input(
+                    image_array
+                )
+            )
 
             image_array = np.expand_dims(
                 image_array,
                 axis=0
             )
 
-            # CNN prediction
+            # MobileNetV2 prediction
             predictions = model.predict(
                 image_array,
                 verbose=0
@@ -460,7 +483,7 @@ if uploaded_file is not None:
                 <div class="result-card">
                     <h3>🎯 Confidence</h3>
                     <h2>{confidence:.2f}%</h2>
-                    <p>CNN Prediction Score</p>
+                    <p>MobileNetV2 Prediction Score</p>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -526,6 +549,7 @@ if uploaded_file is not None:
             "Consult an agricultural expert before treatment."
         )
 
+
 # ==========================================
 # 12. ABOUT PROJECT
 # ==========================================
@@ -536,14 +560,15 @@ st.markdown("## 🌱 About PlantCare AI")
 
 st.write("""
 PlantCare AI is a deep learning-based plant disease detection
-application developed using Convolutional Neural Networks (CNN).
+application developed using MobileNetV2 transfer learning.
 
-The system analyzes uploaded leaf images and predicts possible
-diseases in tomato, potato, and bell pepper plants.
+The system analyzes uploaded leaf images using MobileNetV2 and predicts
+possible diseases in tomato, potato, and bell pepper plants.
 
 The model is trained using the PlantVillage dataset and supports
 15 different healthy and diseased leaf categories.
 """)
+
 
 # ==========================================
 # 13. PROJECT DETAILS
@@ -559,7 +584,7 @@ with detail1:
         """
         <div class="info-card">
             <h3>🧠 Algorithm</h3>
-            <p>Convolutional Neural Network (CNN)</p>
+            <p>MobileNetV2 (Transfer Learning)</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -602,7 +627,7 @@ st.markdown(
         <h3 style="color:#176b3a;">🌱 PlantCare AI</h3>
         <p>Minor Project | B.Tech CSE (AI & ML) | 2026</p>
         <p>Developed by Anshika Sethi, Sakshi Singh & Payal</p>
-        <p>Powered by Deep Learning and Computer Vision</p>
+        <p>Powered by MobileNetV2, Deep Learning and Computer Vision</p>
     </div>
     """,
     unsafe_allow_html=True
