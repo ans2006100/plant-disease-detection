@@ -1,4 +1,5 @@
 
+
 import streamlit as st
 import tensorflow as tf
 import numpy as np
@@ -20,8 +21,9 @@ st.set_page_config(
 
 BASE_DIR = Path(__file__).resolve().parent
 
-MODEL_PATH = BASE_DIR / "best_mobilenetv2.keras"
-CLASS_PATH = BASE_DIR / "class_names.json"
+MODEL_PATH = BASE_DIR / "plant_disease_cnn (1).keras"
+CLASS_PATH = BASE_DIR / "class_names (1).json"
+
 
 
 # ==========================================
@@ -149,12 +151,19 @@ st.markdown(
 
 st.markdown(
     '<div class="subtitle">'
-    'Smart Plant Disease Detection Using Deep Learning'
+    'Smart Plant Disease Detection Using a CNN'
     '</div>',
     unsafe_allow_html=True
 )
 
 st.divider()
+
+accuracy_col1, accuracy_col2 = st.columns(2)
+with accuracy_col1:
+    st.metric("Training accuracy", "90.2%")
+with accuracy_col2:
+    st.metric("Test accuracy", "92.4%")
+st.caption("Reported results for the latest CNN training run.")
 
 
 # ==========================================
@@ -167,7 +176,7 @@ with st.sidebar:
 
     st.write(
         "An intelligent system that identifies plant leaf "
-        "diseases using MobileNetV2 transfer learning."
+        "diseases using a trained convolutional neural network (CNN)."
     )
 
     st.divider()
@@ -184,7 +193,7 @@ with st.sidebar:
 
     st.write("• Python")
     st.write("• TensorFlow / Keras")
-    st.write("• MobileNetV2 (Transfer Learning)")
+    st.write("• CNN with data augmentation")
     st.write("• Streamlit")
     st.write("• NumPy")
     st.write("• Pillow")
@@ -321,7 +330,8 @@ EXPECTED_CLASS_NAMES = [
 def load_model():
 
     model = tf.keras.models.load_model(
-        str(MODEL_PATH)
+        str(MODEL_PATH),
+        compile=False
     )
 
     with open(CLASS_PATH, "r", encoding="utf-8") as file:
@@ -330,8 +340,11 @@ def load_model():
     if class_names != EXPECTED_CLASS_NAMES:
         raise ValueError(
             "class_names.json does not match the exact "
-            "15-class order used during MobileNetV2 training."
+            "15-class order used during CNN training."
         )
+
+    if tuple(model.input_shape[1:]) != (128, 128, 3):
+        raise ValueError("The CNN must accept 128x128 RGB images.")
 
     if model.output_shape[-1] != len(class_names):
         raise ValueError(
@@ -345,7 +358,7 @@ try:
 
     model, class_names = load_model()
 
-    st.success("✅ MobileNetV2 model loaded successfully!")
+    st.success("✅ CNN model loaded successfully!")
 
 except Exception as e:
 
@@ -407,28 +420,24 @@ if uploaded_file is not None:
 
     if predict_button:
 
-        with st.spinner("Analyzing plant leaf using MobileNetV2..."):
+        with st.spinner("Analyzing plant leaf using CNN..."):
 
-            # MobileNetV2 preprocessing
-            resized_image = image.resize((160, 160))
+            # CNN preprocessing
+            resized_image = image.resize((128, 128))
 
             image_array = np.array(
                 resized_image,
                 dtype=np.float32
             )
 
-            image_array = (
-                tf.keras.applications.mobilenet_v2.preprocess_input(
-                    image_array
-                )
-            )
+            image_array = image_array / 255.0
 
             image_array = np.expand_dims(
                 image_array,
                 axis=0
             )
 
-            # MobileNetV2 prediction
+            # CNN prediction
             predictions = model.predict(
                 image_array,
                 verbose=0
@@ -483,7 +492,7 @@ if uploaded_file is not None:
                 <div class="result-card">
                     <h3>🎯 Confidence</h3>
                     <h2>{confidence:.2f}%</h2>
-                    <p>MobileNetV2 Prediction Score</p>
+                    <p>CNN Prediction Score</p>
                 </div>
                 """,
                 unsafe_allow_html=True
@@ -560,9 +569,9 @@ st.markdown("## 🌱 About PlantCare AI")
 
 st.write("""
 PlantCare AI is a deep learning-based plant disease detection
-application developed using MobileNetV2 transfer learning.
+application developed using a trained convolutional neural network (CNN).
 
-The system analyzes uploaded leaf images using MobileNetV2 and predicts
+The system analyzes uploaded leaf images using CNN and predicts
 possible diseases in tomato, potato, and bell pepper plants.
 
 The model is trained using the PlantVillage dataset and supports
@@ -584,7 +593,7 @@ with detail1:
         """
         <div class="info-card">
             <h3>🧠 Algorithm</h3>
-            <p>MobileNetV2 (Transfer Learning)</p>
+            <p>CNN with data augmentation</p>
         </div>
         """,
         unsafe_allow_html=True
@@ -627,8 +636,9 @@ st.markdown(
         <h3 style="color:#176b3a;">🌱 PlantCare AI</h3>
         <p>Minor Project | B.Tech CSE (AI & ML) | 2026</p>
         <p>Developed by Anshika Sethi, Sakshi Singh & Payal</p>
-        <p>Powered by MobileNetV2, Deep Learning and Computer Vision</p>
+        <p>Powered by CNN, Deep Learning and Computer Vision</p>
     </div>
     """,
     unsafe_allow_html=True
 )
+
